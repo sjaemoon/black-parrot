@@ -38,23 +38,23 @@ void bp_barrier_end(volatile uint64_t * barrier_address, uint64_t total_num_core
 }
 
 void bp_finish(uint8_t code) {
-  uint64_t core_id;
+  //uint64_t core_id;
+  __asm__ volatile("ecall");
+  //__asm__ volatile("csrr %0, mhartid": "=r"(core_id): :);
 
-  __asm__ volatile("csrr %0, mhartid": "=r"(core_id): :);
-
-  *(FINISH_BASE_ADDR+core_id*8) = code;
+  //*(FINISH_BASE_ADDR+core_id*8) = code;
 }
 
 void bp_hprint(uint8_t hex) {
-  uint64_t core_id;
+  //uint64_t core_id;
 
-  *(HPRINT_BASE_ADDR) = hex;
+  //*(HPRINT_BASE_ADDR) = hex;
 }
 
 void bp_cprint(uint8_t ch) {
-  uint64_t core_id;
+  //uint64_t core_id;
 
-  *(CPRINT_BASE_ADDR) = ch;
+  //*(CPRINT_BASE_ADDR) = ch;
 }
 
 

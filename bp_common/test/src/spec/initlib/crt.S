@@ -59,6 +59,10 @@ _start:
     la gp, __global_pointer$
 .option pop
 
+    li tp, 1
+    slli tp, tp, 17
+    add tp, tp, sp
+
 /* initialize dramfs */
     call dramfs_init
 
@@ -71,8 +75,15 @@ _start:
     jal main
 
 /* send BP finish packet */
-    call bp_finish
+    call exit
 
 loop:
     j loop
 
+.section ".tohost","aw",@progbits
+.align 6
+.globl tohost
+tohost: .dword 0
+.align 6
+.globl fromhost
+fromhost: .dword 0

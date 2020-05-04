@@ -2,7 +2,7 @@ PROG_NAME := $(BENCHMARK)
 SPEC_DIR = $(TEST_DIR)/src/spec
 BENCHMARK_DIR = $(SPEC_DIR)/spec2000/benchmarks/spec2000/CINT2000/$(BENCHMARK)
 
-INIT_FILES = crt.o args.o
+INIT_FILES = crt.o args.o syscalls.o
 OBJECT_FILES := $(BENCHMARK_OBJS)
 OBJECT_FILES += lfs.o $(INIT_FILES)
 
