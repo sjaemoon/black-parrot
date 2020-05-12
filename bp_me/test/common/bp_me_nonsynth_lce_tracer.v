@@ -117,10 +117,12 @@ module bp_me_nonsynth_lce_tracer
       end
 
       if (tr_pkt_v_o_i & tr_pkt_ready_i) begin
-        $fdisplay(file, "[%t]: LCE[%0d] TR resp uc[%b] addr[%H] set[%d] %H time[%0t]"
+        //$fdisplay(file, "[%t]: LCE[%0d] TR resp uc[%b] addr[%H] set[%d] %H time[%0t]"
+        $fdisplay(file, "[%t]: LCE[%0d] TR resp uc[%b] addr[%H] set[%d] %H"
                   , $time, lce_id_i, tr_resp.uncached, tr_resp.paddr
                   , tr_resp.paddr[block_offset_bits_lp +: lg_sets_lp]
-                  , tr_resp.data, $time-tr_start_t
+                  , tr_resp.data
+                  //, tr_resp.data, $time-tr_start_t
                   );
 
       end
