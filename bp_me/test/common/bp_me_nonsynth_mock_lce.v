@@ -1,8 +1,9 @@
 /**
  * bp_me_nonsynth_mock_lce.v
  *
- * This mock LCE behaves like a mock D$. It connects to a trace replay module and to the BP ME.
- * The trace replay format is defined in bp_me_nonsynth_pkg.vh.
+ * This mock LCE behaves like a D$. It connects to a trace replay module that provides a load/store
+ * sequence for the mock LCE. The mock LCE then issues requests using the LCE-CCE IF.
+ * The trace replay format is defined in bp_me_nonsynth_pkg.vh
  *
  * Allowable startup sequences:
  * 1. while freeze is high, sync command arrives, LCE transitions to normal mode
@@ -10,6 +11,12 @@
  *
  *
  */
+
+// TODO:
+// 1. re-write mock LCE to use a bsg_1rw_sram for the tag and data memories.
+// 2. remove extra cycles of lookup on rams
+// 3. make mock LCE more synthesizable to avoid issues with Verilator compilation (even though
+//    it is not intended to ever be used in a synth design or FPGA)
 
 module tag_lookup
   import bp_common_pkg::*;
