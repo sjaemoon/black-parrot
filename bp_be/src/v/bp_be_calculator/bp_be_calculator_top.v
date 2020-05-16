@@ -63,10 +63,10 @@ module bp_be_calculator_top
   , output [csr_cmd_width_lp-1:0]       csr_cmd_o
   , output                              csr_cmd_v_o
   , input [dword_width_p-1:0]           csr_data_i
+  , input                               csr_exc_i
 
   , input [mem_resp_width_lp-1:0]       mem_resp_i
   , input                               mem_resp_v_i
-  , output                              mem_resp_ready_o
 
   , input [ptw_pkt_width_lp-1:0]        ptw_pkt_i
   , output [commit_pkt_width_lp-1:0]    commit_pkt_o
@@ -279,7 +279,6 @@ bp_be_pipe_mul
   
      ,.mem_resp_i(mem_resp_i)
      ,.mem_resp_v_i(mem_resp_v_i)
-     ,.mem_resp_ready_o(mem_resp_ready_o)
   
      ,.exc_v_o(pipe_mem_exc_v_lo)
      ,.miss_v_o(pipe_mem_miss_v_lo)
@@ -308,6 +307,7 @@ bp_be_pipe_mul
      ,.csr_cmd_o(csr_cmd_o)
      ,.csr_cmd_v_o(csr_cmd_v_o)
      ,.csr_data_i(csr_data_i)
+     ,.csr_exc_i(csr_exc_i)
 
      ,.mem_resp_i(mem_resp_i)
 
@@ -498,7 +498,8 @@ always_comb
         exc_stage_n[2].poison_v        = exc_stage_r[1].poison_v | flush_i;
         // We only poison on exception or cache miss, because we also flush
         // on, for instance, fence.i
-        exc_stage_n[3].poison_v        = exc_stage_r[2].poison_v | pipe_mem_miss_v_lo | pipe_mem_exc_v_lo;
+        exc_stage_n[3].poison_v        = exc_stage_r[2].poison_v | pipe_mem_miss_v_lo | pipe_mem_exc_v_lo
+                                          | pipe_sys_miss_v_lo | pipe_sys_exc_v_lo;
   end
 
 assign commit_pkt.v          = calc_stage_r[2].v & ~exc_stage_r[2].poison_v;

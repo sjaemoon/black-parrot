@@ -61,6 +61,10 @@ sim_sample.v: $(SIM_DIR)/run_samplev
 sim_sample.v: SIM_LOG    := $(LOG_DIR)/$(TB).$(CFG).$(TAG).sim.$(SUITE).$(PROG).log
 sim_sample.v: SIM_REPORT := $(REPORT_DIR)/$(TB).$(CFG).$(TAG).sim.$(SUITE).$(PROG).rpt
 sim_sample.v: SIM_ERROR  := $(REPORT_DIR)/$(TB).$(CFG).$(TAG).sim.$(SUITE).$(PROG).err
+sim_sample.v: VCS_OPTIONS += +memcbk
+sim_sample.v: VCS_OPTIONS += +vcs+vcdpluson
+sim_sample.v: VCS_OPTIONS += +vcs+vcdplusmemon
+sim_sample.v: VCS_OPTIONS += +vcs+vcdplusautoflushon
 $(SIM_DIR)/run_samplev: $(SAMPLE_COLLATERAL)
 	cd $(@D); \
 		$(DROMAJO) $(@D)/prog.riscv --host --maxinsn=$(SAMPLE_START_P) --save=dromajo --memory_size=$(SAMPLE_MEMSIZE)

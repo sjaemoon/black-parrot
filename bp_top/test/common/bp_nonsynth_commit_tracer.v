@@ -15,6 +15,7 @@ module bp_nonsynth_commit_tracer
     , input                                   freeze_i
 
     , input [`BSG_SAFE_CLOG2(num_core_p)-1:0] mhartid_i
+    , input [1:0]                             priv_mode_i
 
     , input [decode_width_lp-1:0]             decode_i
 
@@ -67,19 +68,20 @@ always_ff @(negedge delay_li)
   logic [vaddr_width_p-1:0] commit_pc_r;
   logic [instr_width_p-1:0] commit_instr_r;
   logic                     commit_rd_w_v_r;
+  logic [1:0]               priv_mode_r;
   logic commit_fifo_v_lo, commit_fifo_yumi_li;
   wire commit_rd_w_v_li = decode_r.irf_w_v | decode_r.pipe_long_v;
   bsg_fifo_1r1w_small
-   #(.width_p(1+vaddr_width_p+instr_width_p+1), .els_p(8))
+   #(.width_p(2+1+vaddr_width_p+instr_width_p+1), .els_p(8))
    commit_fifo
     (.clk_i(clk_i)
      ,.reset_i(reset_i)
 
-     ,.data_i({commit_v_i, commit_pc_i, commit_instr_i, commit_rd_w_v_li})
+     ,.data_i({priv_mode_i, commit_v_i, commit_pc_i, commit_instr_i, commit_rd_w_v_li})
      ,.v_i(commit_v_i)
      ,.ready_o()
 
-     ,.data_o({commit_v_r, commit_pc_r, commit_instr_r, commit_rd_w_v_r})
+     ,.data_o({priv_mode_r, commit_v_r, commit_pc_r, commit_instr_r, commit_rd_w_v_r})
      ,.v_o(commit_fifo_v_lo)
      ,.yumi_i(commit_fifo_yumi_li)
      );
@@ -89,7 +91,7 @@ always_ff @(negedge delay_li)
     // TODO: For some reason, we're getting 0 PC/instr pairs. Either to do with nops or exceptions
     if (commit_fifo_yumi_li & commit_v_r & commit_pc_r != '0)
       begin
-        $fwrite(file, "%x %x %x %x ", mhartid_i, commit_pc_r, commit_instr_r, itag_cnt);
+        $fwrite(file, "%x %x %x %x ", priv_mode_r, commit_pc_r, commit_instr_r, itag_cnt);
         if (rd_w_v_i)
           $fwrite(file, "%x %x", rd_addr_i, rd_data_i);
         $fwrite(file, "\n");

@@ -62,6 +62,7 @@ always_ff @(negedge reset_i)
      ,.data_o(decode_r)
      );
 
+  // We store cause in a compressed format in the CSR regfile
   logic                     commit_v_r;
   logic [vaddr_width_p-1:0] commit_pc_r;
   logic [instr_width_p-1:0] commit_instr_r;

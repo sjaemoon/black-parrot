@@ -38,8 +38,9 @@ module bp_be_pipe_sys
    , input                                kill_ex3_i
 
    , output logic [csr_cmd_width_lp-1:0]  csr_cmd_o
-   , output                               csr_cmd_v_o
+   , output logic                         csr_cmd_v_o
    , input logic [dword_width_p-1:0]      csr_data_i
+   , input logic                          csr_exc_i
 
    , input [mem_resp_width_lp-1:0]        mem_resp_i
 
@@ -70,9 +71,10 @@ always_comb
   begin
     csr_cmd_li.csr_op   = decode.fu_op;
     csr_cmd_li.csr_addr = instr.fields.itype.imm12;
-    csr_cmd_li.data     = csr_imm_op ? imm_i : rs1_i;
+    csr_cmd_li.data     = (decode.fu_op == e_itlb_fill) ? pc_i : csr_imm_op ? imm_i : rs1_i;
   end
 
+logic csr_cmd_v_lo;
 bsg_shift_reg
  #(.width_p(csr_cmd_width_lp)
    ,.stages_p(2)
@@ -91,16 +93,47 @@ bsg_shift_reg
 always_comb
   begin
     csr_cmd_lo = csr_cmd_r;
-    csr_cmd_lo.data = (csr_cmd_lo.csr_op inside {e_itlb_fill, e_dtlb_fill}) ? mem_resp.vaddr : csr_cmd_r.data;
+
+    if (mem_resp.tlb_miss_v)
+      begin
+        csr_cmd_lo.csr_op = e_dtlb_fill;
+        csr_cmd_lo.data = mem_resp.vaddr;
+      end
+    else if (ptw_pkt.instr_page_fault_v)
+      begin
+        csr_cmd_lo.csr_op = e_op_instr_page_fault;
+      end
+    else if (ptw_pkt.load_page_fault_v | mem_resp.load_page_fault)
+      begin
+        csr_cmd_lo.csr_op = e_op_load_page_fault;
+      end
+    else if (ptw_pkt.store_page_fault_v | mem_resp.store_page_fault)
+      begin
+        csr_cmd_lo.csr_op = e_op_store_page_fault;
+      end
+    else if (mem_resp.load_misaligned)
+      begin
+        csr_cmd_lo.csr_op = e_op_load_misaligned;
+      end
+    else if (mem_resp.load_access_fault)
+      begin
+        csr_cmd_lo.csr_op = e_op_load_access_fault;
+      end
+    else if (mem_resp.store_misaligned)
+      begin
+        csr_cmd_lo.csr_op = e_op_store_misaligned;
+      end
+    else if (mem_resp.store_access_fault)
+      begin
+        csr_cmd_lo.csr_op = e_op_store_access_fault;
+      end
   end
 assign csr_cmd_o = csr_cmd_lo;
-assign csr_cmd_v_o = (csr_cmd_v_lo & ~kill_ex3_i);
+assign csr_cmd_v_o = (csr_cmd_v_lo & ~kill_ex3_i) | ptw_pkt.instr_page_fault_v | ptw_pkt.load_page_fault_v | ptw_pkt.store_page_fault_v | mem_resp.tlb_miss_v | mem_resp.store_page_fault | mem_resp.load_page_fault | mem_resp.store_access_fault | mem_resp.store_misaligned | mem_resp.load_access_fault | mem_resp.load_misaligned;
 
 assign data_o           = csr_data_i;
-assign exc_v_o          = 1'b0;
+assign exc_v_o          = csr_exc_i;
 assign miss_v_o         = 1'b0;
-assign mem_resp_ready_o = 1'b1;
-
 
 endmodule
 

@@ -63,12 +63,12 @@ module bp_be_mem_top
    , input [csr_cmd_width_lp-1:0]            csr_cmd_i
    , input                                   csr_cmd_v_i
    , output [dword_width_p-1:0]              csr_data_o
+   , output logic                            csr_exc_o
 
    , input                                   chk_poison_ex_i
 
    , output [mem_resp_width_lp-1:0]          mem_resp_o
    , output                                  mem_resp_v_o
-   , input                                   mem_resp_ready_i
 
    , output [ptw_pkt_width_lp-1:0]           ptw_pkt_o
 
@@ -143,9 +143,6 @@ assign commit_pkt = commit_pkt_i;
 assign trap_pkt_o = trap_pkt;
 assign ptw_pkt_o  = ptw_pkt;
 
-// Suppress unused signal warnings
-wire unused0 = mem_resp_ready_i;
-
 /* Internal connections */
 /* TLB ports */
 logic                    dtlb_en, dtlb_miss_v, dtlb_w_v, dtlb_r_v, dtlb_r_v_lo;
@@ -177,8 +174,7 @@ logic                     dcache_miss_lo;
 logic                     csr_illegal_instr_lo;
 logic [ptag_width_p-1:0]  satp_ppn_lo;
 logic                     mstatus_sum_lo, mstatus_mxr_lo, translation_en_lo;
-logic                     itlb_fill_lo, instr_page_fault_lo, instr_access_fault_lo, instr_misaligned_lo;
-logic                     ebreak_lo;
+logic                     itlb_fill_lo, dtlb_fill_lo;
 logic [rv64_priv_width_gp-1:0] priv_mode_lo;
 
 logic load_access_fault_v, load_access_fault_mem3, store_access_fault_v, store_access_fault_mem3;
@@ -193,7 +189,7 @@ logic is_store_r, is_store_rr;
 bp_be_mmu_vaddr_s vaddr_mem3;
 
 wire itlb_fill_cmd_v = itlb_fill_lo;
-wire dtlb_fill_cmd_v = dtlb_miss_r;
+wire dtlb_fill_cmd_v = dtlb_fill_lo;
 
 wire is_store = mmu_cmd_v_i & mmu_cmd.mem_op inside {e_sb, e_sh, e_sw, e_sd, e_scw, e_scd};
 
@@ -208,41 +204,13 @@ bsg_dff_chain
    ,.data_o(vaddr_mem3)
    );
 
-bp_be_ecode_dec_s exception_ecode_dec_li;
-bp_be_ecode_dec_s ptw_exception_ecode_dec_li;
-
-assign ptw_exception_ecode_dec_li =
-  '{instr_page_fault : ptw_instr_page_fault_v
-    ,load_page_fault : ptw_load_page_fault_v
-    ,store_page_fault: ptw_store_page_fault_v
-    ,default: '0
-    };
-
 wire ptw_page_fault_v  = ptw_instr_page_fault_v | ptw_load_page_fault_v | ptw_store_page_fault_v;
 wire exception_v_li = commit_pkt.v | ptw_page_fault_v;
 wire [vaddr_width_p-1:0] exception_pc_li = ptw_page_fault_v ? ptw_tlb_w_pc : commit_pkt.pc;
-//wire [vaddr_width_p-1:0] exception_npc_li = commit_pkt.npc;
 wire [vaddr_width_p-1:0] exception_npc_li = ptw_page_fault_v ? '0 : commit_pkt.npc;
 wire [vaddr_width_p-1:0] exception_vaddr_li = ptw_page_fault_v ? ptw_tlb_w_vaddr : mem_resp.vaddr;
 wire [instr_width_p-1:0] exception_instr_li = commit_pkt.instr;
 // TODO: exception priority is non-compliant with the spec.
-assign exception_ecode_dec_li =
-  '{instr_misaligned : instr_misaligned_lo
-    ,instr_fault     : instr_access_fault_lo
-    ,illegal_instr   : csr_cmd_v_i & ((csr_cmd.csr_op == e_op_illegal_instr) || csr_illegal_instr_lo)
-    ,breakpoint      : ebreak_lo
-    ,load_misaligned : 1'b0 // TODO: Need to detect this
-    ,load_fault      : load_access_fault_mem3
-    ,store_misaligned: 1'b0 // TODO: Need to detect this
-    ,store_fault     : store_access_fault_mem3
-    ,ecall_u_mode    : csr_cmd_v_i & (csr_cmd.csr_op == e_ecall) & (priv_mode_lo == `PRIV_MODE_U)
-    ,ecall_s_mode    : csr_cmd_v_i & (csr_cmd.csr_op == e_ecall) & (priv_mode_lo == `PRIV_MODE_S)
-    ,ecall_m_mode    : csr_cmd_v_i & (csr_cmd.csr_op == e_ecall) & (priv_mode_lo == `PRIV_MODE_M)
-    ,instr_page_fault: instr_page_fault_lo
-    ,load_page_fault : load_page_fault_mem3
-    ,store_page_fault: store_page_fault_mem3
-    ,default: '0
-    };
 
 bp_be_csr
  #(.bp_params_p(bp_params_p))
@@ -257,17 +225,18 @@ bp_be_csr
    ,.csr_cmd_i(csr_cmd_i)
    ,.csr_cmd_v_i(csr_cmd_v_i)
    ,.csr_data_o(csr_data_o)
+   ,.csr_exc_o(csr_exc_o)
    ,.illegal_instr_o(csr_illegal_instr_lo)
 
    ,.hartid_i(cfg_bus.core_id)
    ,.instret_i(commit_pkt.instret)
 
    ,.exception_v_i(exception_v_li)
+   ,.ptw_busy_i(ptw_busy)
    ,.exception_pc_i(exception_pc_li)
    ,.exception_npc_i(exception_npc_li)
    ,.exception_vaddr_i(exception_vaddr_li)
    ,.exception_instr_i(exception_instr_li)
-   ,.exception_ecode_dec_i(exception_ecode_dec_li | ptw_exception_ecode_dec_li)
    ,.fencei_v_i(mem_resp.fencei_v)
 
    ,.timer_irq_i(timer_irq_i)
@@ -285,10 +254,7 @@ bp_be_csr
    ,.mstatus_mxr_o(mstatus_mxr_lo)
 
    ,.itlb_fill_o(itlb_fill_lo)
-   ,.instr_page_fault_o(instr_page_fault_lo)
-   ,.instr_access_fault_o(instr_access_fault_lo)
-   ,.instr_misaligned_o(instr_misaligned_lo)
-   ,.ebreak_o(ebreak_lo)
+   ,.dtlb_fill_o(dtlb_fill_lo)
    );
 
 bp_tlb
@@ -339,7 +305,7 @@ bp_be_ptw
    ,.tlb_miss_load_v_i(dtlb_fill_cmd_v & ~is_store_rr)
    ,.tlb_miss_store_v_i(dtlb_fill_cmd_v & is_store_rr)
    ,.tlb_miss_pc_i(commit_pkt.pc)
-   ,.tlb_miss_vaddr_i(vaddr_mem3)
+   ,.tlb_miss_vaddr_i(csr_cmd.data[0+:vaddr_width_p])
 
    ,.tlb_w_v_o(ptw_tlb_w_v)
    ,.tlb_w_itlb_not_dtlb_o(ptw_itlb_not_dtlb)
@@ -496,11 +462,12 @@ assign dtlb_w_vtag  = ptw_tlb_w_vaddr.tag;
 assign dtlb_w_entry = ptw_tlb_w_entry;
 
 // MMU response connections
-assign mem_resp.miss_v             = mmu_cmd_v_rr & ~dcache_v & ~dcache_fencei_v & ~|exception_ecode_dec_li;
+assign mem_resp.cache_miss_v       = mmu_cmd_v_rr & ~dcache_v & ~dtlb_miss_r & ~dcache_fencei_v & ~store_page_fault_mem3 & ~load_page_fault_mem3 & ~store_access_fault_mem3 & ~load_access_fault_mem3;
+assign mem_resp.tlb_miss_v         = mmu_cmd_v_rr & ~dcache_v &  dtlb_miss_r & ~dcache_fencei_v & ~store_page_fault_mem3 & ~load_page_fault_mem3 & ~store_access_fault_mem3 & ~load_access_fault_mem3;
 assign mem_resp.fencei_v           = dcache_fencei_v;
 assign mem_resp.store_page_fault   = store_page_fault_mem3;
 assign mem_resp.load_page_fault    = load_page_fault_mem3;
-assign mem_resp.store_access_fault = store_access_fault_v;
+assign mem_resp.store_access_fault = store_access_fault_mem3;
 assign mem_resp.store_misaligned   = 1'b0; // TODO: detect
 assign mem_resp.load_access_fault  = load_access_fault_mem3;
 assign mem_resp.load_misaligned    = 1'b0; // TODO: detect

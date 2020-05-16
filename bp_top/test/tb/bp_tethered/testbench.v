@@ -279,7 +279,8 @@ bind bp_be_top
      ,.reset_i(reset_i)
      ,.freeze_i(be_checker.scheduler.int_regfile.cfg_bus.freeze)
 
-     ,.mhartid_i('0)
+     ,.mhartid_i(be_checker.scheduler.int_regfile.cfg_bus.core_id)
+     ,.priv_mode_i(be_mem.csr.priv_mode_r)
 
      ,.decode_i(be_calculator.reservation_n.decode)
 
@@ -320,7 +321,7 @@ bind bp_be_top
            ,.rd_data_i(be_checker.scheduler.wb_pkt.rd_data)
 
            ,.interrupt_v_i(be_mem.csr.trap_pkt_cast_o._interrupt)
-           ,.cause_i(be_mem.csr.trap_pkt_cast_o.cause)
+           ,.cause_i(be_mem.csr.mcause_li)
 
            ,.finish_o(testbench.cosim_finish_lo)
            );
