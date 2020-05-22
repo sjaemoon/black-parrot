@@ -46,7 +46,7 @@
  *
  */
 
-`define declare_bp_lce_cce_if(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, data_width_mp, cce_block_width_mp) \
+`define declare_bp_lce_cce_if(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, lce_req_max_data_width_mp, cce_block_width_mp) \
                                                                                                          \
 /*                                                                                                       \
  * bp_lce_cce_req_s defines an LCE request sent by an LCE to a CCE on a cache miss. An LCE enters        \
@@ -59,6 +59,11 @@
  * non_exclusive indicates if the requesting cache prefers non-exclusive read-access                     \
  * addr is the cache missing address                                                                     \
  * lru_way_id indicates the way within the target set that will be used to fill the miss in to           \
+ *                                                                                                       \
+ * Note: Two LCE Request structs are defined. A regular request supports data packets up to size         \
+ *       specified by lce_req_max_data_width_mp parameter. A block request supports data up to           \
+ *       cce_block_width_mp in size. Regular requests are typically used by D$ and I$, whereas           \
+ *       block requests can be used by LCEs that need to do uncached access for full blocks.             \
  */                                                                                                      \
   typedef struct packed                                                                                  \
   {                                                                                                      \
@@ -73,9 +78,15 @@
                                                                                                          \
   typedef struct packed                                                                                  \
   {                                                                                                      \
-    logic [data_width_mp-1:0]                    data;                                                   \
+    logic [lce_req_max_data_width_mp-1:0]        data;                                                   \
     bp_lce_cce_req_header_s                      header;                                                 \
   } bp_lce_cce_req_s;                                                                                    \
+                                                                                                         \
+  typedef struct packed                                                                                  \
+  {                                                                                                      \
+    logic [cce_block_width_mp-1:0]               data;                                                   \
+    bp_lce_cce_req_header_s                      header;                                                 \
+  } bp_lce_cce_block_req_s;                                                                              \
                                                                                                          \
 /**                                                                                                      \
  *  bp_lce_cmd_s is the generic message for LCE Command and LCE Data Command that is sent across the     \
@@ -271,8 +282,8 @@ typedef enum logic [2:0]
  * Width macros for LCE-CCE Message Networks
  */
 
-`define bp_lce_cce_req_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, data_width_mp) \
-  (`bp_lce_cce_req_header_width(cce_id_width_mp,lce_id_width_mp,paddr_width_mp,lce_assoc_mp)+data_width_mp)
+`define bp_lce_cce_req_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, lce_req_max_data_width_mp) \
+  (`bp_lce_cce_req_header_width(cce_id_width_mp,lce_id_width_mp,paddr_width_mp,lce_assoc_mp)+lce_req_max_data_width_mp)
 
 `define bp_lce_cmd_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, cce_block_width_mp) \
   (`bp_lce_cmd_header_width(cce_id_width_mp,lce_id_width_mp,paddr_width_mp,lce_assoc_mp)+cce_block_width_mp)
@@ -280,8 +291,9 @@ typedef enum logic [2:0]
 `define bp_lce_cce_resp_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, cce_block_width_mp) \
   (`bp_lce_cce_resp_header_width(cce_id_width_mp,lce_id_width_mp,paddr_width_mp)+cce_block_width_mp)
 
-`define declare_bp_lce_cce_if_widths(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, data_width_mp, cce_block_width_mp)    \
-    , localparam lce_cce_req_width_lp=`bp_lce_cce_req_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, data_width_mp) \
+`define declare_bp_lce_cce_if_widths(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, lce_req_max_data_width_mp, cce_block_width_mp)    \
+    , localparam lce_cce_req_width_lp=`bp_lce_cce_req_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, lce_req_max_data_width_mp) \
+    , localparam lce_cce_block_req_width_lp=`bp_lce_cce_req_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, cce_block_width_mp) \
     , localparam lce_cmd_width_lp=`bp_lce_cmd_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, lce_assoc_mp, cce_block_width_mp)    \
     , localparam lce_cce_resp_width_lp=`bp_lce_cce_resp_width(cce_id_width_mp, lce_id_width_mp, paddr_width_mp, cce_block_width_mp)
 
