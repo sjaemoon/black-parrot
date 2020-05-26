@@ -70,6 +70,7 @@ assign lce_resp_link_o = lce_resp_link_cast_o;
 logic timer_irq_li, software_irq_li, external_irq_li;
 
 // Proc-side connections network connections
+// Proc-side LCE Requests support up to dword_width_p of data
 bp_lce_cce_req_s  [1:0] lce_req_lo;
 logic             [1:0] lce_req_v_lo, lce_req_ready_li;
 bp_lce_cce_resp_s [1:0] lce_resp_lo;
@@ -80,12 +81,13 @@ bp_lce_cmd_s      [1:0] lce_cmd_lo;
 logic             [1:0] lce_cmd_v_lo, lce_cmd_ready_li;
 
 // CCE connections
-bp_lce_cce_req_s  cce_lce_req_li;
-logic             cce_lce_req_v_li, cce_lce_req_yumi_lo;
-bp_lce_cmd_s      cce_lce_cmd_lo;
-logic             cce_lce_cmd_v_lo, cce_lce_cmd_ready_li;
-bp_lce_cce_resp_s cce_lce_resp_li;
-logic             cce_lce_resp_v_li, cce_lce_resp_yumi_lo;
+// LCE Request to CCE supports up to block width of data
+bp_lce_cce_block_req_s  cce_lce_req_li;
+logic                   cce_lce_req_v_li, cce_lce_req_yumi_lo;
+bp_lce_cmd_s            cce_lce_cmd_lo;
+logic                   cce_lce_cmd_v_lo, cce_lce_cmd_ready_li;
+bp_lce_cce_resp_s       cce_lce_resp_li;
+logic                   cce_lce_resp_v_li, cce_lce_resp_yumi_lo;
 
 // Mem connections
 bp_cce_mem_msg_s       cce_mem_cmd_lo;
@@ -227,6 +229,7 @@ bp_cce_wrapper
    );
 
 `declare_bsg_wormhole_concentrator_packet_s(coh_noc_cord_width_p, coh_noc_len_width_p, coh_noc_cid_width_p, lce_cce_req_width_lp, lce_req_packet_s);
+`declare_bsg_wormhole_concentrator_packet_s(coh_noc_cord_width_p, coh_noc_len_width_p, coh_noc_cid_width_p, lce_cce_block_req_width_lp, cce_lce_req_packet_s);
 `declare_bsg_wormhole_concentrator_packet_s(coh_noc_cord_width_p, coh_noc_len_width_p, coh_noc_cid_width_p, lce_cmd_width_lp, lce_cmd_packet_s);
 `declare_bsg_wormhole_concentrator_packet_s(coh_noc_cord_width_p, coh_noc_len_width_p, coh_noc_cid_width_p, lce_cce_resp_width_lp, lce_resp_packet_s);
 
@@ -245,7 +248,9 @@ bp_coh_ready_and_link_s cce_lce_resp_link_li, cce_lce_resp_link_lo;
 for (genvar i = 0; i < 2; i++)
   begin : lce
     bp_me_wormhole_packet_encode_lce_req
-     #(.bp_params_p(bp_params_p))
+     #(.bp_params_p(bp_params_p)
+       ,.lce_req_max_data_width_p(dword_width_p)
+       )
      req_encode
       (.payload_i(lce_req_lo[i])
        ,.packet_o(lce_req_packet_lo[i])
@@ -325,9 +330,9 @@ for (genvar i = 0; i < 2; i++)
        );
   end
 
-  lce_req_packet_s cce_lce_req_packet_li;
+  cce_lce_req_packet_s cce_lce_req_packet_li;
   bsg_wormhole_router_adapter_out
-   #(.max_payload_width_p($bits(lce_req_packet_s)-coh_noc_cord_width_p-coh_noc_len_width_p)
+   #(.max_payload_width_p($bits(cce_lce_req_packet_s)-coh_noc_cord_width_p-coh_noc_len_width_p)
      ,.len_width_p(coh_noc_len_width_p)
      ,.cord_width_p(coh_noc_cord_width_p)
      ,.flit_width_p(coh_noc_flit_width_p)
