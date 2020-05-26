@@ -76,7 +76,10 @@ bp_cce_mem_msg_s       mem_cmd;
 logic                  mem_cmd_v, mem_cmd_ready;
 
 // LCE-CCE IF
-bp_lce_cce_req_s       lce_req, lce_req_lo;
+// request from mock LCE (dword_width_p of data)
+bp_lce_cce_req_s       lce_req_lo, lce_req_from_fifo;
+// request to CCE (cce_block_width_p of data)
+bp_lce_cce_block_req_s lce_req_to_cce;
 logic                  lce_req_v, lce_req_v_lo, lce_req_yumi, lce_req_ready_li;
 bp_lce_cce_resp_s      lce_resp, lce_resp_lo;
 logic                  lce_resp_v, lce_resp_v_lo, lce_resp_yumi, lce_resp_ready_li;
@@ -226,9 +229,14 @@ lce_req_buffer
   ,.ready_o(lce_req_ready_li)
   // to CCE
   ,.v_o(lce_req_v)
-  ,.data_o(lce_req)
+  ,.data_o(lce_req_from_fifo)
   ,.yumi_i(lce_req_yumi)
   );
+
+// translate LCE Request from LCE to CCE
+assign lce_req_to_cce = '{data    : {'0, lce_req_from_fifo.data}
+                          ,header : lce_req_from_fifo.header
+                         };
 
 bsg_two_fifo
 #(.width_p(lce_cce_resp_width_lp)
@@ -262,7 +270,7 @@ wrapper
   ,.lce_cmd_v_o(lce_cmd_v)
   ,.lce_cmd_ready_i(lce_cmd_ready)
 
-  ,.lce_req_i(lce_req)
+  ,.lce_req_i(lce_req_to_cce)
   ,.lce_req_v_i(lce_req_v)
   ,.lce_req_yumi_o(lce_req_yumi)
 
