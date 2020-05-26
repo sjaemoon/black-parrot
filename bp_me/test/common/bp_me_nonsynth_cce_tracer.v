@@ -27,7 +27,7 @@ module bp_me_nonsynth_cce_tracer
     , localparam lg_cce_way_groups_lp      = `BSG_SAFE_CLOG2(cce_way_groups_p)
 
     `declare_bp_lce_cce_if_header_widths(cce_id_width_p, lce_id_width_p, paddr_width_p, lce_assoc_p)
-    `declare_bp_lce_cce_if_widths(cce_id_width_p, lce_id_width_p, paddr_width_p, lce_assoc_p, dword_width_p, cce_block_width_p)
+    `declare_bp_lce_cce_if_widths(cce_id_width_p, lce_id_width_p, paddr_width_p, lce_assoc_p, cce_block_width_p, cce_block_width_p)
     `declare_bp_me_if_widths(paddr_width_p, cce_block_width_p, lce_id_width_p, lce_assoc_p)
   )
   (input                                        clk_i
@@ -71,7 +71,7 @@ module bp_me_nonsynth_cce_tracer
 
   // LCE-CCE and Mem-CCE Interface
   `declare_bp_me_if(paddr_width_p, cce_block_width_p, lce_id_width_p, lce_assoc_p);
-  `declare_bp_lce_cce_if(cce_id_width_p, lce_id_width_p, paddr_width_p, lce_assoc_p, dword_width_p, cce_block_width_p);
+  `declare_bp_lce_cce_if(cce_id_width_p, lce_id_width_p, paddr_width_p, lce_assoc_p, cce_block_width_p, cce_block_width_p);
 
   bp_lce_cce_req_s           lce_req;
   bp_lce_cce_resp_s          lce_resp;
@@ -110,12 +110,21 @@ module bp_me_nonsynth_cce_tracer
                  , lce_req.header.lru_way_id
                  );
         end
-        if (lce_req.header.msg_type == e_lce_req_type_uc_rd | lce_req.header.msg_type == e_lce_req_type_uc_wr) begin
+        if (lce_req.header.msg_type == e_lce_req_type_uc_rd) begin
         $fdisplay(file, "[%t]: CCE[%0d] REQ LCE[%0d] addr[%H] wr[%0b] ne[%0b] uc[%0b] lruWay[%0d] lruDirty[%0b]"
                  , $time, cce_id_i, lce_req.header.src_id, lce_req.header.addr, (lce_req.header.msg_type == e_lce_req_type_uc_wr)
                  , 1'b0
                  , 1'b1
                  , '0, '0
+                 );
+        end
+        if (lce_req.header.msg_type == e_lce_req_type_uc_wr) begin
+        $fdisplay(file, "[%t]: CCE[%0d] REQ LCE[%0d] addr[%H] wr[%0b] ne[%0b] uc[%0b] lruWay[%0d] lruDirty[%0b] %H"
+                 , $time, cce_id_i, lce_req.header.src_id, lce_req.header.addr, (lce_req.header.msg_type == e_lce_req_type_uc_wr)
+                 , 1'b0
+                 , 1'b1
+                 , '0, '0
+                 , lce_req.data
                  );
         end
       end
